@@ -1,129 +1,95 @@
-# Cloud Workload Forecasting Challenge
+﻿# Cloud Workload Forecasting
 
-AI/ML take-home challenge built from the **Microsoft Azure Public Dataset V2** VM trace.
+AI/ML take-home project using the fixed `data-v1` release of the Microsoft Azure Public Dataset V2.
 
-## Start here
+## Project results
 
-1. Read [`ASSIGNMENT.md`](ASSIGNMENT.md).
-2. Read [`DATASET.md`](DATASET.md).
-3. Download the **`data-v1` GitHub Release** dataset and extract it as `challenge_data/`.
-4. Read [`SUBMISSION.md`](SUBMISSION.md).
-5. Implement your analysis and forecasting pipeline.
+- 10,000 VMs and 1,340,000 CPU observations.
+- 134 aggregate timestamps at five-minute intervals.
+- First 110 observations used for model development.
+- Final 24 timestamps forecast as a two-hour horizon.
+- Moving average selected using rolling-origin validation.
 
-The challenge dataset is distributed as a versioned GitHub Release rather than committed to the repository. The `data-v1` release contains the fixed curated dataset used for this assignment.
+Validation results (mean across four folds):
 
-## Environment setup
+| Model | MAE | RMSE |
+|---|---:|---:|
+| Moving average (12 observations) | 0.239952 | 0.265398 |
+| Persistence | 0.248082 | 0.276567 |
+| Linear trend (48 observations) | 0.381578 | 0.409507 |
 
-Python **3.11 or newer** is required.
+The moving-average model achieved approximately 3.3% lower mean validation MAE than persistence. This is a modest improvement and does not establish production performance.
 
-Create a virtual environment:
+## Requirements
 
-### Linux / macOS
+Python 3.11 or newer is recommended by the challenge.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
+## Setup on Windows PowerShell
 
-### Windows PowerShell
+Clone this repository and enter its directory. Create and activate a virtual environment:
 
 ```powershell
 py -m venv .venv
-.venv\Scripts\Activate.ps1
-```
-
-### Windows Command Prompt
-
-```cmd
-py -m venv .venv
-.venv\Scripts\activate.bat
-```
-
-Install the project and development dependencies:
-
-```bash
+.\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
+python -m pip install pandas numpy matplotlib
 ```
 
-Verify the installation:
+## Dataset
 
-```bash
+Download `data-v1.tar.gz` from the [official challenge release](https://github.com/atomityhq/forecasting-challenge/releases/tag/data-v1).
+
+Extract it into the repository root so the files are located in `challenge_data/`. The two compressed CSV files and the checksum manifest are required.
+
+Do not substitute a different dataset version. The dataset is intentionally excluded from this submission repository.
+
+## Reproduce the analysis and forecasts
+
+Run these commands from the repository root after installing dependencies and extracting the dataset:
+
+```powershell
+python .\analyze_data.py
+python .\forecast_pipeline.py
+python .\create_report_assets.py
 python -m pytest -q
 ```
 
-The repository includes a small test suite covering the starter forecasting utilities. Run it before beginning the assignment.
+The scripts produce:
 
-## Dataset download
+- `challenge_data/aggregate_targets.csv` — derived aggregate targets.
+- `reports/validation_results.csv` — validation-fold metrics.
+- `reports/figures/cpu_workload.png` — workload overview.
+- `reports/figures/validation_comparison.png` — validation comparison.
+- `predictions.csv` — required 24-row forecast file.
 
-The hiring dataset is distributed as the fixed `data-v1` release of this repository.
+`inspect_data.py` provides additional dataset inspection.
 
-**Download:** [Azure Dataset v1 Release](https://github.com/atomityhq/forecasting-challenge/releases/tag/data-v1)
+## Forecasting methodology
 
-Download `data-v1.tar.gz` from the release and extract it into the repository as `challenge_data/`:
+The required targets are:
 
-```bash
-mkdir -p challenge_data
-tar -xzf data-v1.tar.gz -C challenge_data
+- `active_vm_count`: distinct VMs with valid readings at each timestamp.
+- `aggregate_cpu_utilization`: mean VM-level `avg_cpu` at each timestamp.
+
+CPU forecasts compare persistence, a 12-observation moving average, and a linear trend fitted to the most recent 48 observations. Four chronological validation origins are used within the first 110 observations, with a 24-observation horizon at each origin.
+
+The selected CPU model is the one with the lowest mean validation MAE. The active VM count uses persistence because it is constant in the training window.
+
+The final 24 target values are not used for model selection. Validation folds overlap, so their errors are not independent. The short trace does not establish daily or weekly seasonality.
+
+## Report
+
+See [`reports/final_report.md`](reports/final_report.md) for data quality, workload analysis, validation results, limitations, and operational recommendations.
+
+## Tests
+
+Run:
+
+```powershell
+python -m pytest -q
 ```
 
-The resulting layout is:
+## Dataset source
 
-```text
-challenge_data/
-├── vm_cpu_readings.csv.gz
-├── vm_metadata.csv.gz
-├── DATA_CARD.md
-└── SHA256SUMS
-```
-
-Verify the dataset before starting the assignment:
-
-```bash
-cd challenge_data
-sha256sum -c SHA256SUMS
-```
-
-You should see:
-
-```text
-vm_cpu_readings.csv.gz: OK
-vm_metadata.csv.gz: OK
-DATA_CARD.md: OK
-```
-
-The release is a real, curated subset of the Microsoft Azure Public Dataset V2. It is not synthetic data.
-
-The dataset contains 10,000 VMs with 134 CPU measurements per VM at five-minute intervals, for a total of 1,340,000 CPU observations.
-
-Use the exact `data-v1` release provided for this assignment. Do not substitute another dataset or a different version of the Azure Public Dataset.
-
-## What you are solving
-
-The underlying data contains anonymized VM workload telemetry sampled every five minutes. Your job is to understand the workload and build a defensible forecasting pipeline for near-term aggregate demand.
-
-The challenge is intentionally open-ended. We evaluate reasoning, time-series methodology, leakage prevention, error analysis, reproducibility, and the quality of your operational conclusions—not just model complexity.
-
-## Expected environment
-
-Python 3.11+ is recommended.
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e '.[dev]'
-pytest -q
-```
-
-Model dependencies are intentionally not prescribed. Add only what you need and document them.
-
-## Source
-
-Microsoft Azure Public Dataset V2:
-https://github.com/Azure/AzurePublicDataset
-
-The official V2 documentation describes a 30-day VM trace with five-minute CPU readings, VM metadata, and encrypted subscription/deployment/VM identifiers. The full upstream trace is much larger than this challenge release.
-
-## Submission
-
-Submit your work as a repository or archive according to [`SUBMISSION.md`](SUBMISSION.md).
+Microsoft Azure Public Dataset V2: https://github.com/Azure/AzurePublicDataset

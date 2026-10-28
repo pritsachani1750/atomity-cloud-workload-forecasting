@@ -2,3 +2,14 @@
 .venv/
 .pytest_cache/
 __pycache__/
+# Python environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Challenge dataset: download separately, do not commit
+data-v1.tar.gz
+challenge_data/*.csv.gz
+challenge_data/aggregate_targets.csv
